@@ -1,0 +1,61 @@
+batch_size: 128
+clip_duration_ms: 1500
+eval_step_interval: 500
+features:
+- features_dir: /w/features/positive
+  penalty_weight: 1.0
+  sampling_weight: 2.0
+  truncation_strategy: truncate_start
+  truth: true
+  type: mmap
+- features_dir: /w/features/adversarial
+  penalty_weight: 1.0
+  sampling_weight: 4.0
+  truncation_strategy: truncate_start
+  truth: false
+  type: mmap
+- features_dir: /w/negatives/speech/speech
+  penalty_weight: 1.0
+  sampling_weight: 10.0
+  truncation_strategy: random
+  truth: false
+  type: mmap
+- features_dir: /w/negatives/dinner_party/dinner_party
+  penalty_weight: 1.0
+  sampling_weight: 10.0
+  truncation_strategy: random
+  truth: false
+  type: mmap
+- features_dir: /w/negatives/no_speech/no_speech
+  penalty_weight: 1.0
+  sampling_weight: 5.0
+  truncation_strategy: random
+  truth: false
+  type: mmap
+- features_dir: /w/negatives/dinner_party_eval/dinner_party_eval
+  penalty_weight: 1.0
+  sampling_weight: 0.0
+  truncation_strategy: split
+  truth: false
+  type: mmap
+freq_mask_count:
+- 0
+freq_mask_max_size:
+- 0
+learning_rates:
+- 0.001
+maximization_metric: average_viable_recall
+minimization_metric: null
+negative_class_weight:
+- 20
+positive_class_weight:
+- 1
+target_minimization: 0.9
+time_mask_count:
+- 0
+time_mask_max_size:
+- 0
+train_dir: /w/trained/hey_donut
+training_steps:
+- 10000
+window_step_ms: 10

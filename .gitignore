@@ -1,0 +1,14 @@
+# Training workspace — all generated or downloaded, ~44 GB. Never commit.
+samples/
+negatives/
+features/
+augment/
+trained/
+work/
+out/
+*.log
+*.wav
+*.zip
+*.pt
+__pycache__/
+.DS_Store

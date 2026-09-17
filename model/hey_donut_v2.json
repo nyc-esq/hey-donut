@@ -1,0 +1,18 @@
+{
+  "type": "micro",
+  "wake_word": "Hey Donut v2",
+  "author": "nyc-esq",
+  "website": "",
+  "model": "hey_donut_v2.tflite",
+  "trained_languages": [
+    "en"
+  ],
+  "version": 2,
+  "micro": {
+    "probability_cutoff": 0.95,
+    "feature_step_size": 10,
+    "sliding_window_size": 5,
+    "tensor_arena_size": 37000,
+    "minimum_esphome_version": "2024.7.0"
+  }
+}
