@@ -1,0 +1,11 @@
+[Unit]
+Description=Wake-word sample recorder (phone page, stores real "Hey Donut" recordings)
+After=network-online.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/wakeword-recorder/server.py
+Restart=always
+RestartSec=5
+User=warren
+[Install]
+WantedBy=multi-user.target

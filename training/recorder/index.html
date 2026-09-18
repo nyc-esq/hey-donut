@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Teach Donut her name</title>
+<style>
+ :root{--bg:#11131a;--fg:#e9ecf2;--dim:#98a0b3;--edge:#252a36;--ok:#4fb47a;--go:#d94f7a;--warn:#d9a441}
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;padding:20px 16px 48px}
+ .wrap{max-width:560px;margin:0 auto}
+ h1{font-size:20px;margin:0 0 4px} p.sub{color:var(--dim);margin:0 0 20px;font-size:14px}
+ .card{border:1px solid var(--edge);border-radius:14px;padding:16px;margin-bottom:14px;background:#161922}
+ label{display:block;font-size:13px;color:var(--dim);margin:12px 0 6px;letter-spacing:.02em}
+ select,input{width:100%;padding:13px;border-radius:10px;border:1px solid var(--edge);background:#0e1017;color:var(--fg);font-size:16px}
+ button{width:100%;padding:17px;border-radius:12px;border:0;font-size:17px;font-weight:600;color:#fff;background:var(--go);margin-top:14px}
+ button.ghost{background:#2a3040} button:disabled{opacity:.45}
+ .row{display:flex;gap:10px} .row>*{flex:1}
+ .big{font-size:38px;font-weight:700;text-align:center;margin:18px 0 6px;letter-spacing:.01em}
+ .state{text-align:center;color:var(--dim);min-height:22px;font-size:14px}
+ .meter{height:10px;background:#0e1017;border-radius:6px;overflow:hidden;margin:14px 0 4px}
+ .meter i{display:block;height:100%;width:0;background:var(--ok);transition:width .08s}
+ .bar{height:8px;background:#0e1017;border-radius:5px;overflow:hidden;margin-top:12px}
+ .bar i{display:block;height:100%;width:0;background:var(--go)}
+ .hint{background:#0e1017;border-left:3px solid var(--go);padding:12px 14px;border-radius:0 8px 8px 0;font-size:15px;margin:6px 0 2px}
+ .muted{color:var(--dim);font-size:13px} .ok{color:var(--ok)} .warn{color:var(--warn)}
+ ul{padding-left:20px;margin:8px 0} li{margin:5px 0;font-size:14px;color:var(--dim)}
+ .done{font-size:15px;text-align:center;padding:10px}
+ .rec{color:var(--go);font-weight:700}
+</style></head><body><div class="wrap">
+
+<h1>Teach Donut her name</h1>
+<p class="sub">She is going to hear you say "Hey Donut" a few hundred times. Twenty minutes, and she stops mishearing you.</p>
+
+<div class="card" id="setup">
+  <label>Who is recording?</label>
+  <select id="who"><option value="">Choose…</option><option value="chris">Chris</option><option value="jeanette">Jeanette</option></select>
+  <label>Which room are you in?</label>
+  <select id="room"><option value="den">Den</option><option value="master-bedroom">Master bedroom</option><option value="kitchen">Kitchen</option><option value="living-room">Living room</option><option value="elsewhere">Somewhere else</option></select>
+  <label>How it works</label>
+  <ul>
+    <li>Put the phone down where you normally stand or sit. Do not hold it to your mouth.</li>
+    <li>It records in bursts. When it says <b class="rec">SPEAK</b>, say <b>“Hey Donut”</b> once, normally.</li>
+    <li>It keeps going on its own. Pause any time. Nothing is lost if you stop.</li>
+    <li>Do the rooms you actually use her in. More rooms is better.</li>
+  </ul>
+  <button id="start">Allow the microphone and begin</button>
+  <p class="muted" id="err"></p>
+</div>
+
+<div class="card" id="session" hidden>
+  <div id="blockTitle" style="font-weight:600"></div>
+  <div class="hint" id="blockHint"></div>
+  <div class="big" id="cue">ready</div>
+  <div class="state" id="state"></div>
+  <div class="meter"><i id="level"></i></div>
+  <div class="bar"><i id="prog"></i></div>
+  <p class="muted" id="counts"></p>
+  <div class="row">
+    <button id="pause" class="ghost">Pause</button>
+    <button id="skip" class="ghost">Skip block</button>
+  </div>
+  <button id="stop" class="ghost">Finish for now</button>
+</div>
+
+<div class="card" id="finish" hidden>
+  <div class="done" id="finishMsg"></div>
+  <button id="again" class="ghost">Record another room</button>
+</div>
+
+</div><script>
+const BLOCKS = [
+  {id:"normal",  n:60, t:"1 of 6 · Normal voice",        h:"Where you normally are in this room. Say it exactly as you always do."},
+  {id:"far",     n:40, t:"2 of 6 · From across the room", h:"Leave the phone where it is and move well back — four or five paces. Normal volume, do not shout."},
+  {id:"quiet",   n:30, t:"3 of 6 · Quiet",                h:"Half voice, the way you would say it without waking someone."},
+  {id:"fast",    n:30, t:"4 of 6 · Fast, no T",           h:"“hey donuh” — the way it really comes out when you are in a hurry."},
+  {id:"calling", n:20, t:"5 of 6 · Calling out",          h:"Raised voice, as if calling from the next room. Not shouting into the phone."},
+  {id:"noisy",   n:20, t:"6 of 6 · With noise",           h:"Put the TV or some music on in the background, then say it normally."},
+];
+const TAKE_MS = 2200, LEAD_MS = 450, GAP_MS = 900, RATE = 16000;
+
+let ctx, stream, src, node, buf = [], capturing = false, paused = false, stopped = false;
+let who = "", room = "", bi = 0, done = 0, total = BLOCKS.reduce((a,b)=>a+b.n,0);
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function wav(samples, rate){
+  const b = new ArrayBuffer(44 + samples.length*2), v = new DataView(b);
+  const s = (o,t)=>{for(let i=0;i<t.length;i++) v.setUint8(o+i, t.charCodeAt(i));};
+  s(0,"RIFF"); v.setUint32(4, 36+samples.length*2, true); s(8,"WAVEfmt ");
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  s(36,"data"); v.setUint32(40, samples.length*2, true);
+  for(let i=0;i<samples.length;i++){ const x=Math.max(-1,Math.min(1,samples[i])); v.setInt16(44+i*2, x<0?x*0x8000:x*0x7fff, true); }
+  return new Blob([b],{type:"audio/wav"});
+}
+
+async function openMic(){
+  stream = await navigator.mediaDevices.getUserMedia({audio:{
+    channelCount:1, echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+  try { ctx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:RATE}); }
+  catch(e){ ctx = new (window.AudioContext||window.webkitAudioContext)(); }
+  await ctx.resume();
+  src = ctx.createMediaStreamSource(stream);
+  node = ctx.createScriptProcessor(4096, 1, 1);
+  node.onaudioprocess = e => {
+    const d = e.inputBuffer.getChannelData(0);
+    let peak = 0; for(let i=0;i<d.length;i+=8){ const a=Math.abs(d[i]); if(a>peak) peak=a; }
+    $("level").style.width = Math.min(100, peak*140) + "%";
+    if (capturing) buf.push(new Float32Array(d));
+  };
+  src.connect(node); node.connect(ctx.destination);
+}
+
+async function takeOne(style){
+  buf = []; capturing = true;
+  $("cue").textContent = "SPEAK"; $("cue").className = "big rec"; $("state").textContent = "say “Hey Donut”";
+  await sleep(TAKE_MS);
+  capturing = false;
+  $("cue").textContent = "…"; $("cue").className = "big"; $("state").textContent = "saving";
+  let len = 0; buf.forEach(b => len += b.length);
+  const all = new Float32Array(len); let o = 0; buf.forEach(b => { all.set(b, o); o += b.length; });
+  const blob = wav(all, ctx.sampleRate|0);
+  try{
+    const r = await fetch("/upload", {method:"POST", body:blob, headers:{
+      "Content-Type":"audio/wav","X-Who":who,"X-Style":style,"X-Room":room}});
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error||r.status);
+    done++; $("prog").style.width = (100*done/total)+"%";
+    $("counts").textContent = done + " of " + total + " saved" + (j.seconds? "  ·  last clip "+j.seconds+"s":"");
+    $("state").innerHTML = '<span class="ok">saved</span>';
+  }catch(e){
+    $("state").innerHTML = '<span class="warn">not saved: '+e.message+'</span>';
+    await sleep(900);
+  }
+}
+
+async function run(){
+  for(; bi < BLOCKS.length; bi++){
+    const b = BLOCKS[bi];
+    $("blockTitle").textContent = b.t; $("blockHint").textContent = b.h;
+    $("cue").textContent = "get ready"; $("state").textContent = "starting in a moment";
+    await sleep(2600);
+    for(let k=0; k<b.n; k++){
+      if(stopped) return finish();
+      while(paused && !stopped){ $("cue").textContent="paused"; $("state").textContent="tap Resume"; await sleep(250); }
+      if(stopped) return finish();
+      if(b.skip){ b.skip=false; break; }
+      $("cue").textContent = String(b.n - k); $("state").textContent = "…";
+      await sleep(LEAD_MS);
+      await takeOne(b.id);
+      await sleep(GAP_MS);
+    }
+  }
+  finish();
+}
+
+function finish(){
+  $("session").hidden = true; $("finish").hidden = false;
+  $("finishMsg").innerHTML = done >= total
+    ? "<b>All " + done + " done.</b><br>That is a full set for this room. Thank you."
+    : "<b>" + done + " saved.</b><br>Every one counts — you can come back and do more any time.";
+}
+
+$("start").onclick = async () => {
+  who = $("who").value; room = $("room").value;
+  if(!who){ $("err").textContent = "Pick who is recording first."; return; }
+  $("start").disabled = true; $("err").textContent = "";
+  try { await openMic(); }
+  catch(e){
+    $("start").disabled = false;
+    $("err").textContent = "The microphone was refused (" + e.name + "). Allow it for this page and try again.";
+    return;
+  }
+  $("setup").hidden = true; $("session").hidden = false; run();
+};
+$("pause").onclick = () => { paused = !paused; $("pause").textContent = paused ? "Resume" : "Pause"; };
+$("skip").onclick  = () => { BLOCKS[bi].skip = true; };
+$("stop").onclick  = () => { stopped = true; };
+$("again").onclick = () => location.reload();
+</script></body></html>
