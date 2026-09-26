@@ -12,3 +12,6 @@ out/
 *.pt
 __pycache__/
 .DS_Store
+
+# Session-specific guidance for Claude Code (private; never commit)
+CLAUDE.local.md

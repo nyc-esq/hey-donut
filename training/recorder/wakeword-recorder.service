@@ -1,11 +1,14 @@
 [Unit]
 Description=Wake-word sample recorder (phone page, stores real "Hey Donut" recordings)
 After=network-online.target
+# The recordings live on /data: wait for it, or the first boot after a slow mount fails.
+RequiresMountsFor=/data
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /opt/wakeword-recorder/server.py
 Restart=always
 RestartSec=5
-User=warren
+# The account that owns the recording folder (/data/wakeword/samples/real by default).
+User=wakeword
 [Install]
 WantedBy=multi-user.target
