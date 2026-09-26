@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Wake-word sample recorder. Serves a phone page and stores what it records.
 
-2026-09-18, Chris: "build the recorder, both of us". The old "Hey Donut" models were trained on
+2026-09-18: "build the recorder, both of us". The old "Hey Donut" models were trained on
 12,000 Piper TTS samples and no human voice at all, which is why they needed shouting and the stock
 Okay Nabu model worked first try. This collects the missing ingredient: real people, real rooms.
 
