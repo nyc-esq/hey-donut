@@ -51,7 +51,7 @@ rest.
 
 ## Rules that earned their place
 
-- **Record more than one person.** The old model had no Jeanette in it at all.
+- **Record more than one person.** The old model had only one voice in it.
 - **Say it lazily.** Train on perfect enunciation and it only answers perfect enunciation.
 - **Hold out REAL clips for evaluation.** The whole failure was an eval drawn from the training
   generator. A model is only as honest as the set you judge it on.
